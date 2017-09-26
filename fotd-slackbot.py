@@ -129,7 +129,7 @@ def get_env():
             help="The store string from the culver's website"
         )
     parser.add_argument(
-            '--post_hour',dest='post_hour',
+            '--post_time',dest='post_time',
             default=os.environ.get('POST_HOUR'),
             help="Sets the time to post the FOTF to the specified channel"
         )
@@ -148,15 +148,16 @@ def get_env():
         # env is missing restaurant
         sys.exit(4)
 
-    if args.channel_name and args.post_hour:
+    if args.channel_name and args.post_time:
         # These must be specified, or omitted together
         return args
-    elif (args.channel_name is None) and (args.post_hour is None):
+    elif (args.channel_name is None) and (args.post_time is None):
         # These must be specified, or omitted together
         return args
     else:
-        print("post_hour and channel name are required together")
+        print("post_time and channel name are required together")
         sys.exit(10)
+
 
 def main():
     args = get_env()
@@ -166,25 +167,64 @@ def main():
     forecast_list = get_forecast(args.restaurant)
     #print forecast_list
     now = datetime.datetime.now()
-    cache_renew_time = datetime.datetime.now().replace
+    next_post_datetime = None
+    alert_sent_last_iter = False
     cache = {now: forecast_list}
+
+    if args.post_time:
+        hour,minute = args.post_time.split(":")
+        next_post_datetime = now.replace(hour=int(hour),minute=int(minute),second=0,microsecond=0)
+        init_time_diff = next_post_datetime - now
+        #print init_time_diff.seconds
+        #print init_time_diff.days
+
+        if init_time_diff.days < 0:
+            # check at startup to see if the alarm is set, if so, then check if
+            # alert time has already passed. If it has, add a day to the next 
+            # alert time.
+            target_datetime = next_post_datetime + datetime.timedelta(days=1)
+            next_post_datetime = target_datetime
+        
+        #print next_post_datetime
 
     if sc.rtm_connect():
         print("{0} is connected and running!".format(args.bot_name))
         while True:
+            now = datetime.datetime.now()
             for datestamp in cache:
-                delta = datetime.datetime.now() - datestamp
+                delta = now - datestamp
                 #print dir(delta)
                 if delta.seconds > 14400:
                     #renews every 4 hours
                     forecast_list = get_forecast(args.restaurant)
-                    now = datetime.datetime.now()
                     cache = {now: forecast_list}
                     print "Updated cache at {0}".format(now)
 
             command, channel = parse_slack_output(sc.rtm_read(),bot_id)
             if command and channel:
                 handle_command(sc,cache,command,channel)
+
+            if next_post_datetime:
+                if alert_sent_last_iter:
+                    alert_sent_last_iter = False
+                else:
+                    time_diff = next_post_datetime - now
+                    if time_diff.days < 0:
+                        #alarm time has passed! send message!!
+                        # set flag indicating to reset next run!
+                        # also reset alarm time for same time tomorrow!
+                        alert_sent_last_iter = True
+                        target_datetime = next_post_datetime + datetime.timedelta(days=1)
+                        next_post_datetime = target_datetime
+                        #print "Next message will be posted {0}".format(next_post_datetime)
+                        fotd = get_fotd(args.restaurant)
+                        message = "Today's flavor is {0}.".format(fotd)
+                        sc.api_call(
+                            "chat.postMessage",as_user="true:",
+                            channel=args.channel_name,text=message
+                        )
+
+
             time.sleep(1)
  
 if __name__ == '__main__':
