@@ -62,6 +62,8 @@ def handle_command(sc,cache,command,channel):
     """
     response = "Not sure what you mean. Use the *" + "search" + \
                "* command with some search string."
+    if command.startsWith(":party_parrot:")
+        cs.api_call("chat.postMessage", channel=channel,text=":party_parrot:", as_user=True)
     if command.startswith("search"):
         fotd_forecast = {}
         for key in cache:
