@@ -62,8 +62,6 @@ def handle_command(sc,cache,command,channel):
     """
     response = "Not sure what you mean. Use the *" + "search" + \
                "* command with some search string."
-    if command.startsWith(":party_parrot:")
-        cs.api_call("chat.postMessage", channel=channel,text=":party_parrot:", as_user=True)
     if command.startswith("search"):
         fotd_forecast = {}
         for key in cache:
@@ -84,12 +82,13 @@ def handle_command(sc,cache,command,channel):
             else:
                 response = "Sorry, I couldn't find anything that matched that!"
                 sc.api_call("chat.postMessage", channel=channel,text=response,as_user=True)
-
-
         else:
             response_list = []
             response = "\n".join(fotd_forecast)
             sc.api_call("chat.postMessage", channel=channel,text=response, as_user=True)
+    elif command.startswith(":") and command.endswith(":"):
+        response = str(command)
+        sc.api_call("chat.postMessage", channel=channel,text=response, as_user=True)
 
 
 def parse_slack_output(slack_rtm_output,bot_id):
