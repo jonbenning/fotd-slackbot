@@ -109,30 +109,67 @@ def parse_slack_output(slack_rtm_output,bot_id):
 
 def get_env():
     parser = argparse.ArgumentParser(description="Sends notifications for FOTD")
+    ## First check environment variables
+    if 'BOT_TOKEN' in os.environ:
+        bot_token_default = os.environ.get('BOT_TOKEN')
+    else:
+        bot_token_default = None
+
+    if 'BOT_NAME' in os.environ:
+        bot_name_default = os.environ.get('BOT_NAME')
+    else:
+        bot_name_default = None
+
+    if 'CHANNEL_NAME' in os.environ:
+        channel_name_default = os.environ.get('CHANNEL_NAME')
+    else:
+        channel_name_default = None
+
+    if 'RESTAURANT' in os.environ:
+        restaurant_default = os.environ.get('RESTAURANT')
+    else:
+        restaurant_default = None
+
+    if 'POST_TIME' in os.environ:
+        post_time_default = os.environ.get('POST_TIME')
+    else:
+        post_time_default = None
+
+    if 'POST_WORKWEEK_ONLY' in os.environ:
+        post_workweek_only_default = os.environ.get('POST_WORKWEEK_ONLY')
+    else:
+        post_workweek_only_default = None
+
     parser.add_argument(
             '--bot_token',dest='bot_token',
-            default=os.environ.get('BOT_TOKEN'),
+            default=bot_token_default,
             help="Token for bot from api.slack.com"
         )
     parser.add_argument(
             '--bot_name',dest='bot_name',
-            default=os.environ.get('BOT_NAME'),
+            default=bot_name_default,
             help="Name of the bot from Slack"
         )
     parser.add_argument(
             '--channel_name',dest='channel_name',
-            default=os.environ.get('CHANNEL_NAME'),
+            default=channel_name_default,
             help="Channel Name to post FOTD alerts to"
         )
     parser.add_argument(
             '--restaurant',dest='restaurant',
-            default=os.environ.get('RESTAURANT'),
+            default=restaurant_default,
             help="The store string from the culver's website"
         )
     parser.add_argument(
             '--post_time',dest='post_time',
-            default=os.environ.get('POST_HOUR'),
+            default=post_time_default,
             help="Sets the time to post the FOTF to the specified channel"
+        )
+    parser.add_argument(
+            '--post_workweek_only',dest='post_workweek_only',
+            default=post_workweek_only_default,
+            action="store_true",
+            help="Only post FOTD during the workweek (M-F)"
         )
     args = parser.parse_args()
 
@@ -210,20 +247,35 @@ def main():
                     alert_sent_last_iter = False
                 else:
                     time_diff = next_post_datetime - now
+                    weekday = now.weekday()
                     if time_diff.days < 0:
-                        #alarm time has passed! send message!!
-                        # set flag indicating to reset next run!
-                        # also reset alarm time for same time tomorrow!
-                        alert_sent_last_iter = True
-                        target_datetime = next_post_datetime + datetime.timedelta(days=1)
-                        next_post_datetime = target_datetime
-                        #print "Next message will be posted {0}".format(next_post_datetime)
-                        fotd = get_fotd(args.restaurant)
-                        message = "Today's flavor is {0}.".format(fotd)
-                        sc.api_call(
-                            "chat.postMessage",as_user="true:",
-                            channel=args.channel_name,text=message
-                        )
+                        if args.post_workweek_only:
+                            # Only post FOTD on weekdays
+                            if weekday < 6:
+                                #alarm time has passed! send message!!
+                                # set flag indicating to reset next run!
+                                # also reset alarm time for same time tomorrow!
+                                alert_sent_last_iter = True
+                                target_datetime = next_post_datetime + datetime.timedelta(days=1)
+                                next_post_datetime = target_datetime
+                                #print "Next message will be posted {0}".format(next_post_datetime)
+                                fotd = get_fotd(args.restaurant)
+                                message = "Today's flavor is {0}.".format(fotd)
+                                sc.api_call(
+                                    "chat.postMessage",as_user="true:",
+                                    channel=args.channel_name,text=message
+                                )
+                        else:
+                            alert_sent_last_iter = True
+                            target_datetime = next_post_datetime + datetime.timedelta(days=1)
+                            next_post_datetime = target_datetime
+                            #print "Next message will be posted {0}".format(next_post_datetime)
+                            fotd = get_fotd(args.restaurant)
+                            message = "Today's flavor is {0}.".format(fotd)
+                            sc.api_call(
+                                "chat.postMessage",as_user="true:",
+                                channel=args.channel_name,text=message
+                            )
 
 
             time.sleep(1)
