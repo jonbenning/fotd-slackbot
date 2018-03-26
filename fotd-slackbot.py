@@ -225,7 +225,7 @@ def main():
         
         #print next_post_datetime
 
-    if sc.rtm_connect():
+    if sc.rtm_connect(auto_reconnect=True):
         print("{0} is connected and running!".format(args.bot_name))
         while True:
             now = datetime.datetime.now()
